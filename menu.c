@@ -1,4 +1,11 @@
+// menu.c - Samuel Dolt
+// Ce fichier implémente le menu du générateur de signal 
+
+// Marque utilisée pour sélectionner une entrée, lorsque le menu est vérouillé
 #define LOCK_MARK '*'
+
+// Marque utilisée pour représenter la ligne du menu que l'on peut modifier 
+// lorsque le menu est dévérouillé
 #define UNLOCK_MARK '>'
 
 #define MENU_FORME 0
@@ -6,24 +13,30 @@
 #define MENU_AMPL 2
 #define MENU_OFFSET 3
 
+// Texte représentant les formes possibles de signal à générer
 const char MENU_VALUE[4][6] = {"CARRE","TRIAN","SINUS","DDS"};
 
+// Incrément, valeur minimale et maximal pour la sélection de la forme
 const uint16_t FORME_INCR = 1;
 const uint16_t FORME_MIN = 0;
 const uint16_t FORME_MAX = 3;
 
+// Incrément, valeur minimale et maximal pour la sélection de la fréquence
 const uint16_t FREQUENCY_INCR = 10;
 const uint16_t FREQUENCY_MIN = 10;
 const uint16_t FREQUENCY_MAX = 990;
 
+// Incrément, valeur minimale et maximal pour la sélection de l'amplitude
 const uint16_t AMPLITUDE_INCR = 50;
 const uint16_t AMPLITUDE_MIN = 0;
 const uint16_t AMPLITUDE_MAX = 10000;
 
+// Incrément, valeur minimale et maximal pour la sélection de l'offset
 const uint16_t OFFSET_INCR = 50;
 const int16_t OFFSET_MIN = -5000;
 const int16_t OFFSET_MAX = 5000;
 
+// Structure servant de descripteur au menu
 struct menu_s
 {
    int8_t active;
@@ -32,12 +45,14 @@ struct menu_s
    uint16_t old;
 }_menu;
 
-
+// Retourne 1 si le menu est vérouillé
+// Retourne 0 si le menu est dévérouillé
 static inline bool menu_is_locked(void)
 {
    return _menu.lock;
 }
 
+// Met à jour la marque sur la ligne sélectionnée.
 void update_mark(void)
 {
    switch(_menu.active)
@@ -60,19 +75,20 @@ void update_mark(void)
    lcd_putc(_menu.mark);
 }
 
+// Retourne la marque utilisée sur la ligne sélectionnée
 static inline char menu_get_mark(void)
 {
    return _menu.mark;
 }
 
+// Permet de sélectionner et mettre à jour la marque utilisée pour sélectionner une ligne
 static inline void menu_set_mark(char mark)
 {
    _menu.mark = mark;
    update_mark();
 }
 
-
-
+// Dévérouille le menu
 void menu_unset_lock(S_ParamGen * data)
 {
    _menu.lock = 0;
@@ -96,9 +112,7 @@ void menu_unset_lock(S_ParamGen * data)
       } 
 }
 
-
-
-
+// Sélectionne une ligne
 void menu_goto(int8_t x)
 {
    // Effacement de menu en cours
@@ -157,39 +171,35 @@ void menu_goto(int8_t x)
    lcd_putc(_menu.mark);
 }
 
+// Met à jour la valeur affichée dans le menu en rajoutant un incrément
 void update_value_menu(int8_t incr, S_ParamGen * data )
 {
    // Effacement de la valeur en cours
    switch(_menu.active)
         {
             case MENU_FORME:
-              lcd_gotoxy( 16, 1);
-               break;
+				lcd_gotoxy( 16, 1);
+				break;
             case MENU_FREQ:
-               lcd_gotoxy( 16, 2);
-               break;
+				lcd_gotoxy( 16, 2);
+				break;
             case MENU_AMPL:
-               lcd_gotoxy( 16, 3);
-               break;
+				lcd_gotoxy( 16, 3);
+				break;
             case MENU_OFFSET:
-               lcd_gotoxy( 16, 4);   
-               break;
+				lcd_gotoxy( 16, 4);   
+				break;
             default:
-               break;
+				break;
          }
          printf(lcd_putc, "     " );
 
      
-         // Incr
-        // generator.Forme = (E_FormesSignal) SignalCarre;
-  // generator.Frequence = 100;
-  // generator.Amplitude = 10;
-  // generator.Offset = 0;
-      // Affichage de la valeur
+      // Ajout de l'incrément et affichage de la valeur
       switch(_menu.active)
       {
-         case MENU_FORME:
-            lcd_gotoxy( 16, 1);
+        case MENU_FORME:
+			lcd_gotoxy( 16, 1);
             
             if(data->Forme == 0 && incr == -1)
             {
@@ -212,7 +222,7 @@ void update_value_menu(int8_t incr, S_ParamGen * data )
             
             printf(lcd_putc, "%s",   MENU_VALUE[data->Forme] );
             break;
-         case MENU_FREQ:
+        case MENU_FREQ:
             lcd_gotoxy( 16, 2);
             data->Frequence += FREQUENCY_INCR * incr;
             
@@ -230,7 +240,7 @@ void update_value_menu(int8_t incr, S_ParamGen * data )
             }
             printf(lcd_putc, "%ld", data->Frequence);
             break;
-         case MENU_AMPL:
+        case MENU_AMPL:
             lcd_gotoxy( 16, 3);
             data->Amplitude += incr * AMPLITUDE_INCR;
             
@@ -249,7 +259,7 @@ void update_value_menu(int8_t incr, S_ParamGen * data )
             
             printf(lcd_putc, "%ld",   data->Amplitude);
             break;
-         case MENU_OFFSET:
+        case MENU_OFFSET:
             lcd_gotoxy( 16, 4);
             data->Offset += incr * OFFSET_INCR;
             
@@ -268,42 +278,45 @@ void update_value_menu(int8_t incr, S_ParamGen * data )
             
             printf(lcd_putc, "%ld",   data->Offset);
             break;
-         default:
+        default:
             break;
       }
 }
 
+// Vérouille le menu. Si clearPressed vaut 1, annule les modifications sinon elle les enregistres
 void menu_set_lock(S_ParamGen * data, uint8_t clearPressed)
 {
-   _menu.lock = 1;
-   menu_set_mark(LOCK_MARK);
-   if(clearPressed)
-   {
-      switch(_menu.active)
-      {
-         case MENU_FORME:
-            data->Forme = _menu.old;
-            break;
-         case MENU_FREQ:
-            data->Frequence = _menu.old;
-            break;
-         case MENU_AMPL:
-            data->Amplitude = _menu.old;
-            break;
-         case MENU_OFFSET:
-            data->Offset = _menu.old;
-            break;
-         default:
-            break;
-      } 
-      update_value_menu(0, data );
-   }
-   else
-   {
-   // Do nothing
-   }
+	_menu.lock = 1;
+	menu_set_mark(LOCK_MARK);
+	if(clearPressed)
+	{
+		switch(_menu.active)
+		{
+			case MENU_FORME:
+				data->Forme = _menu.old;
+				break;
+			case MENU_FREQ:
+				data->Frequence = _menu.old;
+				break;
+			case MENU_AMPL:
+				data->Amplitude = _menu.old;
+				break;
+			case MENU_OFFSET:
+				data->Offset = _menu.old;
+				break;
+			default:
+				break;
+		} 
+		update_value_menu(0, data );
+	}
+	else
+	{
+		// Do nothing
+	}
    
 }
+
+// Initialise les valeurs du menu
 void menu_init_value(S_ParamGen * data)
 {
             lcd_gotoxy( 16, 1);
@@ -319,6 +332,7 @@ void menu_init_value(S_ParamGen * data)
             printf(lcd_putc, "%ld",  data->Offset);
 }
 
+// Initialise le menu
 void menu_init(S_ParamGen * data)
 {
    // Affichage des parties fixes
@@ -338,11 +352,8 @@ void menu_init(S_ParamGen * data)
    menu_set_lock(data, 0);
 }
 
+// Incrémente la ligne sélectionnée selon la valeur de incr
 static inline void menu_add_to_active(int incr)
 {
    menu_goto(_menu.active + incr);
 }
-
-
-
-

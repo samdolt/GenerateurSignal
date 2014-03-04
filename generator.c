@@ -1,3 +1,4 @@
+// Constante de sélection de la forme
 #define GEN_CARRE 0
 #define GEN_TRIAN 1
 #define GEN_SINUS 2
@@ -7,6 +8,7 @@
 int16 Timer0Reload;
 int32_t GENDATA[48];
 
+// Calcul des échantillons pour un signal sinus
 void generator_sinus_init(S_ParamGen * data)
 {
    uint8_t i;
@@ -18,6 +20,7 @@ void generator_sinus_init(S_ParamGen * data)
    }
 }
 
+// Calcul des échantillons pour un signal carré
 void generator_carre_init(S_ParamGen * data)
 {
    uint8_t i;
@@ -32,6 +35,7 @@ void generator_carre_init(S_ParamGen * data)
    }
 }
 
+// Calcul des échantillons pour un signal dent de scie
 void generator_dds_init(S_ParamGen * data)
 {
    int8_t i;
@@ -41,6 +45,7 @@ void generator_dds_init(S_ParamGen * data)
    }
 }
 
+// Calcul des échantillons pour un signal triangle
 void generator_trian_init(S_ParamGen * data)
 {
    int8_t i;
@@ -55,12 +60,13 @@ void generator_trian_init(S_ParamGen * data)
 }
 
 
-
+// Met à jour les échantillons en les recalculant
 void generator_update(S_ParamGen * data)
 {
   int i;
    Timer0Reload = 65536  - ((double)( (double) 1.0/(uint32_t) (data->Frequence  * 48.0)*1000000) / (double) 0.0833333333333333333333333333);
    
+   // Appel des fonctions de calcul des échantillons propre à la forme demandée
    switch(data->Forme)
    {
       case GEN_SINUS:
@@ -79,6 +85,7 @@ void generator_update(S_ParamGen * data)
          break;
    }
    
+   // Gestion des débordements
    for(i = 0; i < 48 ; i++)
    {
       if (GENDATA[i] > 65518)
@@ -90,9 +97,6 @@ void generator_update(S_ParamGen * data)
          GENDATA[i] = 0;
       }
    }
-
-   
-  // set_timer0(65536 - 2500);
 }
 
 

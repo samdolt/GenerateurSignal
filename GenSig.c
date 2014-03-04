@@ -14,11 +14,14 @@
 
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "menu.c"
 
 #include "flash.c"
 #include "generator.c"
+
+#include "GestRS232.c"
 
 
 #define ETOILE '*'
@@ -26,6 +29,10 @@
 
 
 S_ParamGen generator;
+S_ParamGen RemoteGenerator;
+S_ParamGen OldGeneratorValue;
+S_ParamGen SendGenerator;
+
 const uint16 Timer1Reload_1ms = 53536;
 
 
@@ -35,6 +42,11 @@ uint8 EchNb;      // No de l'échantillon
 
 void main() {
 
+   int cycle_counter = 0;
+   int old_state = 1;
+   int connect_counter = 0;
+   int local_flag = 1;
+   int read_cnt_value = 1;
 
    OSCTUNE_PLLEN = 1;      // Pour obtenir les 48 Mhz
    delay_ms(2);
@@ -89,19 +101,47 @@ void main() {
    // Affichage du titre
    lcd_putc("\f");
    lcd_gotoxy( 1, 1);
-   printf(lcd_putc, "Tp1 GenSig 2013" );
+   printf(lcd_putc, "Tp1B GenSig 2013" );
    lcd_gotoxy( 1, 2);
    printf(lcd_putc, "Dolt" );
    lcd_gotoxy( 1, 3);
    printf(lcd_putc, "Palmari" );
    
-   delay_ms(3000);       // délai 5 sec
+   delay_ms(5000);       // délai 5 sec
    lcd_clear();
    
    // Autorisation interruption timer 0 et 1Touc
    enable_interrupts(INT_TIMER0);
    enable_interrupts(INT_TIMER1);
+   enable_interrupts(INT_RDA2);
    enable_interrupts(GLOBAL);
+   
+   
+   // Initilisation du signal
+   generator.Forme = (E_FormesSignal) SignalSinus;
+   generator.Frequence = 100;
+   generator.Amplitude = 10000;
+   generator.Offset = 0;
+   generator.Magic = PROGMEM_MAGIC;
+   RemoteGenerator.Forme = (E_FormesSignal) SignalSinus;
+   RemoteGenerator.Frequence = 100;
+   RemoteGenerator.Amplitude = 10000;
+   RemoteGenerator.Offset = 0;
+   RemoteGenerator.Magic = PROGMEM_MAGIC;
+ 
+   OldGeneratorValue = RemoteGenerator;
+   SendGenerator = generator;
+
+ 
+   progmem_init();
+   progmem_load_data(&generator);
+   // Initilisation du menu
+   menu_init(&generator);
+   
+   generator_update(&RemoteGenerator);
+   
+   InitGestRs232();
+
    
    for(;;) 
    { // boucle sans fin
@@ -150,21 +190,29 @@ void main() {
         {
             // Vérouille le menu et met à jour la table des échantillons
             menu_set_lock(&generator, 0);
-            generator_update(&generator);
-        }  
-    }
-    else if(Pec12IsEsc())
-    {
-        Pec12ClearEsc();
+
+            
+            if(local_flag == 0)
+            {
+               SendGenerator = generator;
+            }
+            else
+            {
+               generator_update(&generator);
+            }
+         }
+
+         //menu.lock = 0;
+         
+      }
+      else if(Pec12IsEsc())
+      {
         if(menu_is_locked())
         {
-            // Ne rien faire
-            // La touche ESC n'a pas d'effet si le menu est vérouillé
+            // Do nothing
         }
         else
         {
-            // Vérouille le menu sans mettre à jour la table des échantillons
-            // Cela a pour effet d'anuler les modifications éffectuée
             menu_set_lock(&generator,  1);
         }   
     }
@@ -173,30 +221,42 @@ void main() {
         // Si aucune touche n'est préssée, ne rien faire
     }
       
-    // Traitement de l'inactivité
+	// Traitement de l'inactivité
+	// Cette partie permet de commuter en mode local quand la communication échoue
     if(Pec12NoActivity())
     {
-        // En cas d'inactivité, on éteind le rétro-éclairage de l'écran LCD
-        lcd_bl_off();
+        if(local_flag == 0)
+        {
+            menu_init_info_char('>','>','>','>');
+            menu_init_value(&RemoteGenerator);
+        }
+        else
+        {
+
+            menu_init_info_char('|','|','|','|');
+            menu_init_value(&generator);
+        }
     }
     else
     {
-        // En cas d'activité, on allume le rétro-éclairage de l'écran LCD
-        lcd_bl_on();
+        menu_init_value(&generator);
+        menu_init_info_char(' ',' ',' ',' ');
+        menu_goto(menu_get_active());
     }
-
+      
+      
     // Traitement de la sauvegarde
-    if(menu_is_locked())
-    {
-        // Si l'événement sauvegarde est reporté
-        if(Pec12Backup())
-        {
-            Pec12ClearBackup();
-            
-            // Affichage du message de sauvegarde
-            lcd_clear();
-            lcd_gotoxy( 1, 1);
-            printf(lcd_putc, "Sauvegarde ?");
+	if(menu_is_locked())
+	{
+		// Si l'événement sauvegarde est reporté
+		if(Pec12Backup())
+		{
+			// Affichage du message de sauvegarde
+			Pec12ClearBackup();
+			lcd_clear();
+			lcd_gotoxy( 1, 1);
+			printf(lcd_putc, "Sauvegarde ?");
+
          
             // Boucle infinie pour l'attente de l'appuis sur la touche OK ou ESC
             for(;;)
@@ -212,35 +272,79 @@ void main() {
                     delay_ms(2000);
                     break;
                 }
-                else if(Pec12IsESC())
-                {
-                    // Appuis sur la touche ESC
-                    // Anulation de la souvegarde
-                    break;
-                }
-                else
-                {
-                    // Pas de touche appuyée, ne rien faire
-                }
-            }
-            
-            // Remise à zéro de l'écran et affichage des valeurs
-            lcd_clear();
-            menu_init(&generator);
-        }
-        else
-        {
-            // Si l'événement sauvegarde n'a pas été reporté, ne rien faire
-        }
-    }
-    else
-    {
-        Pec12ClearBackup();
-        // Si le menu est vérouiller, on efface l'éventuelle évenement déclenchant une sauvegarde
-    }
-      
+				else if(Pec12IsESC())
+				{
+					// Appuis sur la touche ESC
+					// Anulation de la souvegarde
+					break;
+				}
+				else
+				{
+					// Pas de touche appuyée, ne rien faire
+				}
+			}
+			// Remise à zéro de l'écran et affichage des valeurs
+			lcd_clear();
+			menu_init(&generator);
+		}
+		else
+		{
+			// Si l'événement sauvegarde n'a pas été reporté, ne rien faire
+		}
+	}
+	else
+	{
+		Pec12ClearBackup();
+		// Si le menu est vérouiller, on efface l'éventuelle évenement déclenchant une sauvegarde
+	}
+   
+	// FUNCTION RX
+	// generator_update(&generator);
+	//GetMessage(&RemoteGenerator);
+   
+
+   
+	if(GetMessage(&RemoteGenerator) == 0)
+	{
+		generator_update(&RemoteGenerator);
+		connect_counter = 0;
+		local_flag = 0;
+	}
+	else
+	{
+		// Pas de message recu
+		if(connect_counter == 50)
+		{
+            //SendGenerator
+            local_flag = 1;
+            generator_update(&generator);
+		}
+		else if(connect_counter > 50)
+		{
+			// Do nothing
+		}
+		else
+		{
+			connect_counter++;
+		}
+
+	}
+
+
+	if(cycle_counter==1)
+	{
+		// FUNCTION TX
+		SendMessage(&SendGenerator);
+		cycle_counter=0;
+	}
+	else
+	{
+		cycle_counter=1;
+	}
+    
     } // Fin de la boucle infinie principale
 } // Fin de la fonction main
+
 
 
 #INT_TIMER1

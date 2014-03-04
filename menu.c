@@ -89,6 +89,11 @@ static inline void menu_set_mark(char mark)
 }
 
 // Dévérouille le menu
+static inline char menu_get_active(void)
+{
+   return _menu.active;
+}
+
 void menu_unset_lock(S_ParamGen * data)
 {
    _menu.lock = 0;
@@ -319,17 +324,38 @@ void menu_set_lock(S_ParamGen * data, uint8_t clearPressed)
 // Initialise les valeurs du menu
 void menu_init_value(S_ParamGen * data)
 {
-            lcd_gotoxy( 16, 1);
-             printf(lcd_putc, "%s",   MENU_VALUE[data->Forme] );
+   lcd_gotoxy( 16, 1);
+   printf(lcd_putc, "     " );
+   lcd_gotoxy( 16, 1);
+   printf(lcd_putc, "%s",   MENU_VALUE[data->Forme] );
 
-            lcd_gotoxy( 16, 2);
-            printf(lcd_putc, "%ld",  data->Frequence);
 
-            lcd_gotoxy( 16, 3);
-            printf(lcd_putc, "%ld",  data->Amplitude);
+   lcd_gotoxy( 16, 2);
+   printf(lcd_putc, "     " );
+   lcd_gotoxy( 16, 2);
+   printf(lcd_putc, "%ld",  data->Frequence);
 
-            lcd_gotoxy( 16, 4);
-            printf(lcd_putc, "%ld",  data->Offset);
+   lcd_gotoxy( 16, 3);
+   printf(lcd_putc, "     " );
+   lcd_gotoxy( 16, 3);
+   printf(lcd_putc, "%ld",  data->Amplitude);
+
+   lcd_gotoxy( 16, 4);
+   printf(lcd_putc, "     " );
+   lcd_gotoxy( 16, 4);
+   printf(lcd_putc, "%ld",  data->Offset);
+}
+
+void menu_init_info_char(char line1, char line2, char line3, char line4 )
+{
+   lcd_gotoxy( 1, 1);
+   printf(lcd_putc, "%c", line1 );
+   lcd_gotoxy( 1, 2);
+   printf(lcd_putc, "%c", line2 );
+   lcd_gotoxy( 1, 3);
+   printf(lcd_putc, "%c", line3 );
+   lcd_gotoxy( 1, 4);
+   printf(lcd_putc, "%c", line4 );
 }
 
 // Initialise le menu

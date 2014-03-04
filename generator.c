@@ -8,7 +8,12 @@
 int16 Timer0Reload;
 int32_t GENDATA[48];
 
+<<<<<<< HEAD
 // Calcul des échantillons pour un signal sinus
+=======
+S_ParamGen CurrentData;
+
+>>>>>>> origin/TP1B
 void generator_sinus_init(S_ParamGen * data)
 {
    uint8_t i;
@@ -23,6 +28,9 @@ void generator_sinus_init(S_ParamGen * data)
 // Calcul des échantillons pour un signal carré
 void generator_carre_init(S_ParamGen * data)
 {
+   
+   CurrentData = *data;
+   
    uint8_t i;
    
    for(i = 0; i < 24; i++)
@@ -62,8 +70,13 @@ void generator_trian_init(S_ParamGen * data)
 
 // Met à jour les échantillons en les recalculant
 void generator_update(S_ParamGen * data)
-{
-  int i;
+{  
+   int i;
+   
+   if(memcmp(&CurrentData, data, sizeof(S_ParamGen))!= 0)
+   {
+   memcpy(&CurrentData, data, sizeof(S_ParamGen) );
+   
    Timer0Reload = 65536  - ((double)( (double) 1.0/(uint32_t) (data->Frequence  * 48.0)*1000000) / (double) 0.0833333333333333333333333333);
    
    // Appel des fonctions de calcul des échantillons propre à la forme demandée

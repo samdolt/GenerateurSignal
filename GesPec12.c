@@ -85,7 +85,7 @@ void ScanPec12 (bool ValA, bool ValB, bool ValPB, bool ValESC)
    // Détection incrément / décrément
    
    // Test si flanc montant sur A
-   If ( DebounceIsReleased (&DescrA) )  {
+   if ( DebounceIsReleased (&DescrA) )  {
       // Quittance
       DebounceClearReleased(&DescrA);
       if (DebounceGetInput(&DescrB) == 0 ) {
@@ -162,7 +162,7 @@ void ScanPec12 (bool ValA, bool ValB, bool ValPB, bool ValESC)
    if(activity == 0)
    {
       Pec12.InactivityDuration++;
-      if(Pec12.InactivityDuration > 5000)
+      if(Pec12.InactivityDuration > 1500)
       {
          Pec12.NoActivity = 1;
          

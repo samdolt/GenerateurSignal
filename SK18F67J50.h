@@ -37,7 +37,7 @@
 #fuses  HSPLL,  PLL5, NOCPUDIV, NOWDT, STVREN, NOXINST, NODEBUG, NOPROTECT,  NOFCMEN, NOIESO, CCP2C1
 #use delay (clock=48000000)  // 48 MHz system Clock
 // RS232 USART 2
-#use rs232(UART2,baud=9600,parity=N,xmit=PIN_G1,rcv=PIN_G2,bits=8, stop=1)
+#use rs232(UART2,baud=57600,parity=N,xmit=PIN_G1,rcv=PIN_G2,bits=8, stop=1)
 
 
 // Ajout OSCTUNE

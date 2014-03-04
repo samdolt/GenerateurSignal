@@ -177,7 +177,17 @@ void lcd_bl_off() {
   lcd.back_light=0;
 }
 
+void lcd_clear_line(int line)
+{
+    lcd_gotoxy( 1, line);
+    printf(lcd_putc, "                       " );  
+}
 
+static inline void lcd_clear(void)
+{
+   printf(lcd_putc, "\f" );
+   lcd_gotoxy( 1, 1);
+}
 
 /*
   La fonction lcd_put_string_ram écrit sur le LCD un string dont l'adresse du premier caractère est

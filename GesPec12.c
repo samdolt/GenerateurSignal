@@ -38,8 +38,10 @@ typedef struct {
             bool OK;              // événement action OK
             bool ESC;             // événement action ESC
             bool NoActivity;      // Indication de non activité
+            bool BACKUP;
             uint16 PressDuration;        // Pour durée pression du P.B.
             uint16 InactivityDuration;   // Pour durée inactivité
+            uint16 Backup_PressDuration;
 } S_Pec12_Descriptor;
 
 
@@ -51,6 +53,7 @@ S_Pec12_Descriptor Pec12;
 S_SwitchDescriptor DescrA;
 S_SwitchDescriptor DescrB;
 S_SwitchDescriptor DescrPB;
+S_SwitchDescriptor DescrESC;
 
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // Principe utilisation des fonctions
@@ -67,12 +70,17 @@ S_SwitchDescriptor DescrPB;
 //
 
 
-void ScanPec12 (bool ValA, bool ValB, bool ValPB)
+void ScanPec12 (bool ValA, bool ValB, bool ValPB, bool ValESC)
 {
+   int activity;
    // Traitement antirebond sur A, B PB
-   DoDebounce (&DescrA, ValA);
-   DoDebounce (&DescrB, ValB);
-   DoDebounce (&DescrPB, ValPB);
+   activity = DoDebounce (&DescrA, ValA);
+   activity = activity << 1;
+   activity |= DoDebounce (&DescrB, ValB);
+   activity = activity << 1;
+   activity |= DoDebounce (&DescrPB, ValPB);
+   activity = activity << 1;
+   activity |= DoDebounce (&DescrESC, ValESC);
    
    // Détection incrément / décrément
    
@@ -91,6 +99,84 @@ void ScanPec12 (bool ValA, bool ValB, bool ValPB)
    
    
    // Traitement du PushButton
+   if (DebounceIsPressed(&DescrPB) == 1 )
+   {
+      Pec12.PressDuration++;
+      DebounceClearPressed(&DescrPB);
+   }
+   else if(DebounceIsReleased(&DescrPB))
+   {
+      DebounceClearReleased(&DescrPB);
+      if(Pec12.PressDuration < 500)
+      {
+         Pec12.OK = 1;
+      }
+      else
+      {
+         Pec12.ESC = 1;
+      }
+      
+      Pec12.PressDuration = 0;
+   }
+   else if(DebounceGetInput(&DescrPB) == 0)
+   {
+      Pec12.PressDuration++;
+   }
+   else
+   {
+   }
+   
+   // Traitement du ESCButton
+   if (DebounceIsPressed(&DescrESC) == 1 )
+   {
+      Pec12.Backup_PressDuration++;
+      DebounceClearPressed(&DescrESC);
+      activity = 1;
+   }
+   else if(DebounceIsReleased(&DescrESC))
+   {
+      DebounceClearReleased(&DescrESC);
+      if(Pec12.Backup_PressDuration > 2000)
+      {
+         Pec12.BACKUP = 1;
+         activity = 1;
+      }
+      else
+      {
+         // Do nothing
+      }
+      
+      Pec12.Backup_PressDuration = 0;
+   }
+   else if(DebounceGetInput(&DescrESC) == 0)
+   {
+      Pec12.Backup_PressDuration++;
+   }
+   else
+   {
+      // Do nothing
+   }
+
+
+   // Gestion rétro-éclairage
+   if(activity == 0)
+   {
+      Pec12.InactivityDuration++;
+      if(Pec12.InactivityDuration > 5000)
+      {
+         Pec12.NoActivity = 1;
+         
+      }
+      else
+      {
+         // Do nothing
+      }
+   }
+   else
+   {
+      Pec12.InactivityDuration = 0;
+      Pec12.NoActivity = 0;
+   }
    
  } // ScanPec12
 
@@ -141,6 +227,9 @@ bool Pec12NoActivity    (void) {
    return (Pec12.NoActivity);
 }
 
+bool Pec12Backup    (void) {
+   return (Pec12.BACKUP);
+}
 //  Fonctions pour quittance des indications
 //  ----------------------------------------
 
@@ -162,5 +251,9 @@ void Pec12ClearOK   (void) {
 //       Pec12ClearESC     annule indication action ESC
 void Pec12ClearEsc   (void) {
    Pec12.ESC = 0;
+}
+
+void Pec12ClearBackup   (void) {
+   Pec12.BACKUP = 0;
 }
 

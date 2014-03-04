@@ -75,10 +75,11 @@ const int8 MaxDebounceCount = 5;
 //           si elle l'utilise
 //
 
-void DoDebounce (S_SwitchDescriptor *Descriptor, int1 InputValue)
+int DoDebounce (S_SwitchDescriptor *Descriptor, int1 InputValue)
 {
    int1 PrevInputValue;
    s_bits tmp;
+   int return_data = 0;
    
    tmp = Descriptor->bits;
     
@@ -101,6 +102,7 @@ void DoDebounce (S_SwitchDescriptor *Descriptor, int1 InputValue)
               Descriptor->DebounceCounter++;
               if (Descriptor->DebounceCounter >= MaxDebounceCount)  {
                   // mise à jour du nouvel état
+                  return_data=1;
                   tmp.KeyValue = InputValue;
                   if (tmp.KeyValue == 0) {
                      tmp.KeyPressed = true;
@@ -117,6 +119,8 @@ void DoDebounce (S_SwitchDescriptor *Descriptor, int1 InputValue)
       Break;
    }
    Descriptor->bits = tmp;
+   
+   return(return_data);
  } // end DoDebounce
 
 /********************************************************************************************/

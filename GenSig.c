@@ -1,12 +1,7 @@
 // SL229_MINF TP SLO2 2013-2014
-// Canevas manipulation Menu et générateur signal avec PEC12
-// C. HUBER  20/11/2013
+// TP1A : Générateur de signal avec contrôle local
+// Samuel Dolt - Claudio Palmari
 // Fichier GenSig.C
-
-// Le mécanisme d'appel cyclique est mis en place
-// Il reste à réaliser la gestion des menus simplifié
-// ainsi que le générateur de signal
-
 
 #include "sk18f67j50.h"     // Def PIC & Kit
 #include "type_def.h"       // Normalisation des types de base
@@ -56,12 +51,11 @@ void main() {
    // Initialisation SPI et DAC
    InitLTC2604();
    
-   Pec12Init();
    // inititialisation du timer1
    setup_timer_1(T1_INTERNAL | T1_DIV_BY_1);
    set_timer1(Timer1Reload_1ms);
 
-   // Valeur initiale de la recharge du timer0
+   // Valeur initiale Ide la recharge du timer0
    // à  10 Hz periode = 1/(10 * 48) = 2083.33 us
    // à  20 Hz periode = 1/(20 * 48) = 1041.66 us
    // à 990 Hz periode = 1/(990 *48) = 21.043 us 
@@ -77,27 +71,6 @@ void main() {
    // 21.043 / 0.083333333 = 252.5  acceptable 
    
    EchNb = 0;
-  
-   // Affichage du titre
-   lcd_putc("\f");
-   lcd_gotoxy( 1, 1);
-   printf(lcd_putc, "Tp1 GenSig 2013" );
-   lcd_gotoxy( 1, 2);
-   printf(lcd_putc, "Dolt" );
-   lcd_gotoxy( 1, 3);
-   printf(lcd_putc, "Palmari" );
-   
-   delay_ms(3000);       // délai 5 sec
-   lcd_clear();
-   
-   // Autorisation interruption timer 0 et 1
-   enable_interrupts(INT_TIMER0);
-   enable_interrupts(INT_TIMER1);
-   enable_interrupts(GLOBAL);
-   
-  
-   
-   
    
    // Initilisation du signal
    generator.Forme = (E_FormesSignal) SignalSinus;
@@ -112,127 +85,162 @@ void main() {
    menu_init(&generator);
    
    generator_update(&generator);
+  
+   // Affichage du titre
+   lcd_putc("\f");
+   lcd_gotoxy( 1, 1);
+   printf(lcd_putc, "Tp1 GenSig 2013" );
+   lcd_gotoxy( 1, 2);
+   printf(lcd_putc, "Dolt" );
+   lcd_gotoxy( 1, 3);
+   printf(lcd_putc, "Palmari" );
+   
+   delay_ms(3000);       // délai 5 sec
+   lcd_clear();
+   
+   // Autorisation interruption timer 0 et 1Touc
+   enable_interrupts(INT_TIMER0);
+   enable_interrupts(INT_TIMER1);
+   enable_interrupts(GLOBAL);
    
    for(;;) 
    { // boucle sans fin
-      delay_ms(10);
+    delay_ms(10);
 
-      // Gestion des menus
-      
-      // Test du PEC12
-      if(Pec12IsMinus())
-      {
-         Pec12ClearMinus();
-         if(menu_is_locked())
-         {
-            //update_select_menu(-1);
+    // Traitement de l'apuis sur les touches
+    if(Pec12IsMinus())
+    {
+        Pec12ClearMinus();
+        if(menu_is_locked())
+        {
+            // Sélectionne la ligne supérieur du menu
             menu_add_to_active(-1);
-         }
-         else
-         {
+        }
+        else
+        {
+            // Décrémente d'un saut la valeur de la ligne sélectionnée
             update_value_menu(-1, &generator);
-         }
+        }
          
-      }
-      else if(Pec12IsPlus())
-      {
-         Pec12ClearPlus();
-         if(menu_is_locked())
-         {
+    }
+    else if(Pec12IsPlus())
+    {
+        Pec12ClearPlus();
+        if(menu_is_locked())
+        {
+            // Sélectionne la ligne inférieur du menu
             menu_add_to_active(+1);
-            //update_select_menu(+1);
-         }
-         else
-         {
+        }
+        else
+        {
+            // Incrémente d'un saut la valeur de la ligne sélectionnée
             update_value_menu(+1, &generator);
-         }
+        }
          
-      }
-      else if(Pec12IsOK())
-      {
-         Pec12ClearOK();
-         if(menu_is_locked())
-         {
+    }
+    else if(Pec12IsOK())
+    {
+        Pec12ClearOK();
+        if(menu_is_locked())
+        {
+            // Dévérouille le menu pour permettre l'édition
             menu_unset_lock(&generator);
-         }
-         else
-         {
+        }
+        else
+        {
+            // Vérouille le menu et met à jour la table des échantillons
             menu_set_lock(&generator, 0);
             generator_update(&generator);
-         }
-
-         //menu.lock = 0;
-         
-      }
-      else if(Pec12IsEsc())
-      {
-         if(menu_is_locked())
-         {
-            // Do nothing
-         }
-         else
-         {
+        }  
+    }
+    else if(Pec12IsEsc())
+    {
+        Pec12ClearEsc();
+        if(menu_is_locked())
+        {
+            // Ne rien faire
+            // La touche ESC n'a pas d'effet si le menu est vérouillé
+        }
+        else
+        {
+            // Vérouille le menu sans mettre à jour la table des échantillons
+            // Cela a pour effet d'anuler les modifications éffectuée
             menu_set_lock(&generator,  1);
-         }
-         //menu.lock = 1;
-         Pec12ClearEsc();
-      }
-      else
-      {
-      }
+        }   
+    }
+    else
+    {
+        // Si aucune touche n'est préssée, ne rien faire
+    }
       
-      if(Pec12NoActivity())
-      {
-         lcd_bl_off();
-      }
-      else
-      {
-         lcd_bl_on();
-      }
-      //update_select_menu(0);
-   if(menu_is_locked())
-   {
-      if(Pec12Backup())
-      {
-         Pec12ClearBackup();
-         lcd_clear();
-         lcd_gotoxy( 1, 1);
-         printf(lcd_putc, "Sauvegarde ?");
+    // Traitement de l'inactivité
+    if(Pec12NoActivity())
+    {
+        // En cas d'inactivité, on éteind le rétro-éclairage de l'écran LCD
+        lcd_bl_off();
+    }
+    else
+    {
+        // En cas d'activité, on allume le rétro-éclairage de l'écran LCD
+        lcd_bl_on();
+    }
+
+    // Traitement de la sauvegarde
+    if(menu_is_locked())
+    {
+        // Si l'événement sauvegarde est reporté
+        if(Pec12Backup())
+        {
+            Pec12ClearBackup();
+            
+            // Affichage du message de sauvegarde
+            lcd_clear();
+            lcd_gotoxy( 1, 1);
+            printf(lcd_putc, "Sauvegarde ?");
          
-         for(;;)
-         {
-            if(Pec12IsOK())
+            // Boucle infinie pour l'attente de l'appuis sur la touche OK ou ESC
+            for(;;)
             {
-               lcd_gotoxy(1,2);
-               progmem_save_data(&generator);
-               printf(lcd_putc, "Fait !");
-               delay_ms(2000);
-               break;
+                if(Pec12IsOK())
+                {
+                    // Appuis sur la touche OK
+                    // Sauvegarde des paramètres en mémoire programme
+                    // Affichage du message "Fait" pendant deux secondes
+                    progmem_save_data(&generator);
+                    lcd_gotoxy(1,2);
+                    printf(lcd_putc, "Fait !");
+                    delay_ms(2000);
+                    break;
+                }
+                else if(Pec12IsESC())
+                {
+                    // Appuis sur la touche ESC
+                    // Anulation de la souvegarde
+                    break;
+                }
+                else
+                {
+                    // Pas de touche appuyée, ne rien faire
+                }
             }
-            else if(Pec12IsESC())
-            {
-               break;
-            }
-            else
-            {
-               // Do nothing
-            }
-         }
-         lcd_clear();
-         menu_init(&generator);
-      }
-      else
-      {
-         // Do nothing
-      }
-   }
-   else
-   {
-    Pec12ClearBackup();
-   }
+            
+            // Remise à zéro de l'écran et affichage des valeurs
+            lcd_clear();
+            menu_init(&generator);
+        }
+        else
+        {
+            // Si l'événement sauvegarde n'a pas été reporté, ne rien faire
+        }
+    }
+    else
+    {
+        Pec12ClearBackup();
+        // Si le menu est vérouiller, on efface l'éventuelle évenement déclenchant une sauvegarde
+    }
       
-   } // end for(;;)
-} // end main
+    } // Fin de la boucle infinie principale
+} // Fin de la fonction main
 
 
 #INT_TIMER1
@@ -272,6 +280,3 @@ void sampling_isr(void)
    
    output_low(LIGNE3);    // marque fin    
 } // sampling_isr
-
-// Fontions de traitement des éléments de menu
-

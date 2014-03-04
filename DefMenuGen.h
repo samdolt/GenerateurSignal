@@ -11,7 +11,7 @@
 #define DEFMENUGEN_H
 
 
-typedef enum  { SignalCarre, SignalTriangle, SignalSinus, SignalDentDeScie } E_FormesSignal;
+typedef enum  { SignalCarre , SignalTriangle  , SignalSinus , SignalDentDeScie  } E_FormesSignal;
 
 // Structure des paramètres du générateur
 typedef struct {
@@ -20,7 +20,7 @@ typedef struct {
       sint16 Amplitude;
       sint16 Offset;
       uint32 Magic;
-   } S_ParamGen;
+} S_ParamGen;
 
 
 #endif

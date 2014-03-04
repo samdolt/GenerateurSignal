@@ -19,11 +19,14 @@
 
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "menu.c"
 
 #include "flash.c"
 #include "generator.c"
+
+#include "GestRS232.c"
 
 
 #define ETOILE '*'
@@ -31,6 +34,10 @@
 
 
 S_ParamGen generator;
+S_ParamGen RemoteGenerator;
+S_ParamGen OldGeneratorValue;
+S_ParamGen SendGenerator;
+
 const uint16 Timer1Reload_1ms = 53536;
 
 
@@ -40,6 +47,12 @@ uint8 EchNb;      // No de l'échantillon
 
 void main() {
 
+   int cycle_counter = 0;
+   int old_state = 1;
+   int connect_counter = 0;
+   int local_flag = 1;
+   int cts_counter = 0;
+   int read_cnt_value = 1;
 
    OSCTUNE_PLLEN = 1;      // Pour obtenir les 48 Mhz
    delay_ms(2);
@@ -81,19 +94,22 @@ void main() {
    // Affichage du titre
    lcd_putc("\f");
    lcd_gotoxy( 1, 1);
-   printf(lcd_putc, "Tp1 GenSig 2013" );
+   printf(lcd_putc, "Tp1B GenSig 2013" );
    lcd_gotoxy( 1, 2);
    printf(lcd_putc, "Dolt" );
    lcd_gotoxy( 1, 3);
    printf(lcd_putc, "Palmari" );
    
-   delay_ms(3000);       // délai 5 sec
+   delay_ms(5000);       // délai 5 sec
    lcd_clear();
    
    // Autorisation interruption timer 0 et 1
    enable_interrupts(INT_TIMER0);
    enable_interrupts(INT_TIMER1);
+   enable_interrupts(INT_RDA2);
    enable_interrupts(GLOBAL);
+   
+   
    
   
    
@@ -105,14 +121,24 @@ void main() {
    generator.Amplitude = 10000;
    generator.Offset = 0;
    generator.Magic = PROGMEM_MAGIC;
-   
+   RemoteGenerator.Forme = (E_FormesSignal) SignalSinus;
+   RemoteGenerator.Frequence = 100;
+   RemoteGenerator.Amplitude = 10000;
+   RemoteGenerator.Offset = 0;
+   RemoteGenerator.Magic = PROGMEM_MAGIC;
+ 
+   OldGeneratorValue = RemoteGenerator;
+   SendGenerator = generator;
+
+ 
    progmem_init();
    progmem_load_data(&generator);
    // Initilisation du menu
    menu_init(&generator);
    
-   generator_update(&generator);
+   generator_update(&RemoteGenerator);
    
+   InitGestRs232();
    for(;;) 
    { // boucle sans fin
       delay_ms(10);
@@ -158,7 +184,15 @@ void main() {
          else
          {
             menu_set_lock(&generator, 0);
-            generator_update(&generator);
+            
+            if(local_flag == 0)
+            {
+               SendGenerator = generator;
+            }
+            else
+            {
+               generator_update(&generator);
+            }
          }
 
          //menu.lock = 0;
@@ -183,12 +217,26 @@ void main() {
       
       if(Pec12NoActivity())
       {
-         lcd_bl_off();
+         if(local_flag == 0)
+         {
+            menu_init_info_char('>','>','>','>');
+            menu_init_value(&RemoteGenerator);
+         }
+         else
+         {
+
+            menu_init_info_char('|','|','|','|');
+            menu_init_value(&generator);
+         }
       }
       else
       {
-         lcd_bl_on();
+         menu_init_value(&generator);
+         menu_init_info_char(' ',' ',' ',' ');
+         menu_goto(menu_get_active());
       }
+      
+      
       //update_select_menu(0);
    if(menu_is_locked())
    {
@@ -230,7 +278,57 @@ void main() {
    {
     Pec12ClearBackup();
    }
-      
+   
+   // FUNCTION RX
+   // generator_update(&generator);
+   //GetMessage(&RemoteGenerator);
+   
+    if(cts_counter % 20 == 0)
+    {
+  
+   
+   if(GetMessage(&RemoteGenerator) == 0)
+   {
+      generator_update(&RemoteGenerator);
+      connect_counter = 0;
+      local_flag = 0;
+   }
+   else
+   {
+      // Pas de message recu
+      if(connect_counter == 50)
+      {
+            //SendGenerator
+            local_flag = 1;
+            generator_update(&generator);
+      }
+      else if(connect_counter > 50)
+      {
+         // Do nothing
+      }
+      else
+      {
+         connect_counter++;
+      }
+
+   }
+   } // Test cts
+    cts_counter++;
+   
+   
+
+   
+   if(cycle_counter==1)
+   {
+      // FUNCTION TX
+      SendMessage(&SendGenerator);
+      cycle_counter=0;
+   }
+   else
+   {
+      cycle_counter=1;
+   }
+    
    } // end for(;;)
 } // end main
 
